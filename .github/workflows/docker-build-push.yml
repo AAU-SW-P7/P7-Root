@@ -15,15 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout root repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
-          repository: "${{ github.repository_owner }}/P7-Project"
+          repository: "${{ github.repository_owner }}/P7-Root"
           ref: "main"
           path: "${{ github.workspace }}/"
           token: "${{ secrets.PAT }}"
 
       - name: Checkout frontend repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: "${{ github.repository_owner }}/P7-Frontend"
           ref: "main"
@@ -31,7 +31,7 @@ jobs:
           token: "${{ secrets.PAT }}"
 
       - name: Checkout backend repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: "${{ github.repository_owner }}/P7-Backend"
           ref: "main"
