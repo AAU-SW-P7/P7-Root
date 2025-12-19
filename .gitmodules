@@ -1,8 +1,6 @@
 [submodule "backend"]
 	path = backend
 	url = https://github.com/AAU-SW-P7/P7-Backend.git
-	branch = main
 [submodule "frontend"]
 	path = frontend
 	url = https://github.com/AAU-SW-P7/P7-Frontend.git
-	branch = main
