@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: p7
+spec:
+  selector: { 
+    app: backend 
+  }
+  ports:
+    - port: 8000
+      targetPort: 8000
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: p7
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { 
+      app: backend 
+    }
+  template:
+    metadata:
+      labels: { 
+        app: backend 
+      }
+    spec:
+      dnsPolicy: ClusterFirstWithHostNet
+      dnsConfig:
+        nameservers:
+          - 1.1.1.1
+          - 8.8.8.8
+      hostNetwork: true
+      imagePullSecrets:
+        - name: ghcr-login-secret
+      nodeSelector:
+        node-role: master
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command: ["/bin/sh","-c","until nc -z 10.92.0.142 5432; do echo 'waiting for db'; sleep 2; done"]
+      containers:
+        - name: backend
+          image: ghcr.io/aau-sw-p7/p7-backend-prod:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: env
+            - secretRef:
+                name: secret
+          resources:
+            requests:
+              cpu: "16000m"
+              memory: "64Gi"
+            limits:
+              cpu: "16000m"
+              memory: "64Gi"

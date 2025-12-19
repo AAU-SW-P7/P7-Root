@@ -1,0 +1,163 @@
+name: Build and Push Docker Image
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  docker-build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout root repository
+        uses: actions/checkout@v5
+        with:
+          repository: "${{ github.repository_owner }}/P7-Project"
+          ref: "main"
+          path: "${{ github.workspace }}/"
+          token: "${{ secrets.PAT }}"
+
+      - name: Checkout frontend repository
+        uses: actions/checkout@v5
+        with:
+          repository: "${{ github.repository_owner }}/P7-Frontend"
+          ref: "main"
+          path: "${{ github.workspace }}/frontend"
+          token: "${{ secrets.PAT }}"
+
+      - name: Checkout backend repository
+        uses: actions/checkout@v5
+        with:
+          repository: "${{ github.repository_owner }}/P7-Backend"
+          ref: "main"
+          path: "${{ github.workspace }}/backend"
+          token: "${{ secrets.PAT }}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.PAT }}
+
+      - name: Generate Date-Time-Based Tag
+        id: generate_tag
+        run: |
+          new_version=$(date -u +"v%Y.%m.%d.%H%M%S")
+          echo "Generated tag: $new_version"
+          echo "version=$new_version" >> $GITHUB_ENV
+
+      - name: Change Remote to HTTPS and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git remote set-url origin https://x-access-token:${{ secrets.PAT }}@github.com/${{ github.repository }}.git
+
+          git tag -a "${{ env.version }}" -m "Release ${GITHUB_REF} at ${GITHUB_SHA}"
+          git push origin "${{ env.version }}"
+
+      - name: Build Frontend Docker Image (dev)
+        run: |
+          OWNER_LOWER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=ghcr.io/${OWNER_LOWER}/p7-frontend-dev
+          docker build -f ${{ github.workspace }}/frontend/dev.Dockerfile -t $IMAGE:${{ env.version }} -t $IMAGE:latest ${{ github.workspace }}/frontend
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+
+      - name: Build Backend Docker Image (dev)
+        run: |
+          OWNER_LOWER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=ghcr.io/${OWNER_LOWER}/p7-backend-dev
+          docker build -f ${{ github.workspace }}/backend/dev.Dockerfile -t $IMAGE:${{ env.version }} -t $IMAGE:latest ${{ github.workspace }}/backend
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+
+      - name: Push Frontend Docker Image (dev)
+        run: |
+          OWNER_LOWER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=ghcr.io/${OWNER_LOWER}/p7-frontend-dev
+          echo "Pushing $IMAGE:${{ env.version }} and $IMAGE:latest"
+
+          docker push $IMAGE:${{ env.version }}
+          docker push $IMAGE:latest
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+
+      - name: Push Backend Docker Image (dev)
+        run: |
+          OWNER_LOWER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=ghcr.io/${OWNER_LOWER}/p7-backend-dev
+          echo "Pushing $IMAGE:${{ env.version }} and $IMAGE:latest"
+
+          docker push $IMAGE:${{ env.version }}
+          docker push $IMAGE:latest
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+
+      - name: Build Frontend Docker Image (prod)
+        run: |
+          OWNER_LOWER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=ghcr.io/${OWNER_LOWER}/p7-frontend-prod
+          docker build -f ${{ github.workspace }}/frontend/prod.Dockerfile -t $IMAGE:${{ env.version }} -t $IMAGE:latest ${{ github.workspace }}/frontend
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+
+      - name: Build Backend Docker Image (prod)
+        run: |
+          OWNER_LOWER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=ghcr.io/${OWNER_LOWER}/p7-backend-prod
+          docker build -f ${{ github.workspace }}/backend/prod.Dockerfile -t $IMAGE:${{ env.version }} -t $IMAGE:latest ${{ github.workspace }}/backend
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+
+      - name: Push Frontend Docker Image (prod)
+        run: |
+          OWNER_LOWER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=ghcr.io/${OWNER_LOWER}/p7-frontend-prod
+          echo "Pushing $IMAGE:${{ env.version }} and $IMAGE:latest"
+
+          docker push $IMAGE:${{ env.version }}
+          docker push $IMAGE:latest
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+
+      - name: Push Backend Docker Image (prod)
+        run: |
+          OWNER_LOWER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=ghcr.io/${OWNER_LOWER}/p7-backend-prod
+          echo "Pushing $IMAGE:${{ env.version }} and $IMAGE:latest"
+
+          docker push $IMAGE:${{ env.version }}
+          docker push $IMAGE:latest
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+
+    #   - name: Deploy to Remote Server
+    #     if: success()
+    #     env:
+    #       SSH_HOST: ${{ secrets.SSH_HOST }}
+    #       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+    #       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+    #       DEPLOY_COMMANDS: ${{ secrets.DEPLOY_COMMANDS }}
+    #     run: |
+    #       echo "${SSH_PRIVATE_KEY}" > /tmp/private_key
+    #       chmod 600 /tmp/private_key
+    #       ssh -o StrictHostKeyChecking=no -i /tmp/private_key ${SSH_USERNAME}@${SSH_HOST} "${DEPLOY_COMMANDS}"
+    #     shell: bash

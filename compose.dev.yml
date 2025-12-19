@@ -1,0 +1,73 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    env_file:
+     - .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME} -d ${DATABASE_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    entrypoint: [ "/bin/bash", "-c","
+      docker-entrypoint.sh postgres &
+      until pg_isready -U ${DATABASE_USERNAME}; do sleep 3; done &&
+      psql -U ${DATABASE_USERNAME} -d ${DATABASE_USERNAME} -c 'CREATE DATABASE p7_test;' || true &&
+      wait"
+    ]
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: dev.Dockerfile
+    env_file:
+     - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: dev.Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    working_dir: /usr/src/app
+    volumes:
+      - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - "3000:3000"
+
+  nginx:
+    image: nginx:alpine
+    depends_on: [frontend, backend]
+    env_file:
+      - .env
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+  adminer:
+    image: adminer
+    depends_on:
+      - db
+    ports:
+      - 8080:8080
+
+volumes:
+  pgdata:
